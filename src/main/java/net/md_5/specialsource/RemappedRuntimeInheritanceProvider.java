@@ -1,5 +1,7 @@
 package net.md_5.specialsource;
 
+import com.google.common.collect.BiMap;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -9,21 +11,15 @@ import java.util.Map;
  */
 public class RemappedRuntimeInheritanceProvider extends RuntimeInheritanceProvider {
     private final JarMapping jarMapping;
-    private final JarMapping inverseJarMapping;
+
+    private final BiMap<String, String> inversePackageMapping;
+    private final BiMap<String, String> inverseClassMapping;
 
     public RemappedRuntimeInheritanceProvider(JarMapping jarMapping) {
         this.jarMapping = jarMapping;
-        this.inverseJarMapping = new JarMapping();
 
-        // Invert the mapping
-        for (Map.Entry<String, String> entry : jarMapping.classes.entrySet()) {
-            inverseJarMapping.classes.put(entry.getValue(), entry.getKey());
-        }
-
-        for (Map.Entry<String, String> entry : jarMapping.packages.entrySet()) {
-            inverseJarMapping.packages.put(entry.getValue(), entry.getKey());
-        }
-        // TODO: methods, fields?
+        inversePackageMapping = jarMapping.packages.inverse();
+        inverseClassMapping = jarMapping.classes.inverse();
     }
 
     @Override
@@ -39,7 +35,7 @@ public class RemappedRuntimeInheritanceProvider extends RuntimeInheritanceProvid
         // Un-remap the output (example: obf -> cb)
         List<String> afterParents = new ArrayList<String>();
         for (String beforeParent : beforeParents) {
-            afterParents.add(JarRemapper.mapTypeName(beforeParent, inverseJarMapping.packages, inverseJarMapping.classes));
+            afterParents.add(JarRemapper.mapTypeName(beforeParent, inversePackageMapping, inverseClassMapping));
         }
 
         return afterParents;

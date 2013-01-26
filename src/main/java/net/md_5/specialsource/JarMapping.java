@@ -28,13 +28,16 @@
  */
 package net.md_5.specialsource;
 
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
+
 import java.io.*;
 import java.util.*;
 
 public class JarMapping {
 
-    public final Map<String, String> packages = new HashMap<String, String>();
-    public final Map<String, String> classes = new HashMap<String, String>();
+    public final BiMap<String, String> packages = HashBiMap.create();
+    public final BiMap<String, String> classes = HashBiMap.create(1024);
     public final Map<String, String> fields = new HashMap<String, String>();
     public final Map<String, String> methods = new HashMap<String, String>();
 
@@ -120,7 +123,7 @@ public class JarMapping {
             String oldClass = oldJar.classes.get(i);
             String newClass = newJar.classes.get(i);
             classes.put(oldClass, newClass);
-            if (!Objects.equals(oldClass, newClass)) {
+            if (!Objects.equals(oldClass, newClass)) { // TODO: should we always emit class names? for shading - https://github.com/MinecraftPortCentral/MCPC-Plus/issues/91
                 srgWriter.addClassMap(oldClass, newClass);
             }
         }
