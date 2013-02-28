@@ -28,14 +28,9 @@
  */
 package net.md_5.specialsource;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.util.*;
-import java.util.jar.Attributes;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
-import java.util.jar.Manifest;
+import java.util.jar.*;
 import java.util.zip.ZipEntry;
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
@@ -45,19 +40,81 @@ import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.ClassNode;
 
 /**
- * This class wraps a {@link JarFile} enabling quick access to the jar's main
- * class, as well as the ability to get the {@link InputStream} of a class file,
- * and speedy lookups to see if the jar contains the specified class.
+ * This class wraps a {@link JarFile} or {@link JarInputStream} enabling quick
+ * access to the jar's main class, as well as the ability to get the
+ * {@link InputStream} of a class file, and speedy lookups to see if the
+ * jar contains the specified class.
  */
 @ToString
 @EqualsAndHashCode
-@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public class Jar {
 
     private final JarFile file;
     private final String main;
     private final Set<String> contains = new HashSet<String>();
     private final Map<String, ClassNode> classes = new HashMap<String, ClassNode>();
+    private final Map<String, byte[]> classesData = new HashMap<String, byte[]>();
+
+    public Jar(File file) throws IOException {
+        JarFile jarFile = new JarFile(file);
+        String main = null;
+
+        Manifest manifest = jarFile.getManifest();
+        if (manifest != null) {
+            Attributes attributes = manifest.getMainAttributes();
+            if (attributes != null) {
+                String mainClassName = attributes.getValue("Main-Class");
+                if (mainClassName != null) {
+                    main = mainClassName.replace('.', '/');
+                }
+            }
+        }
+
+        this.main = main;
+        this.file = jarFile;
+    }
+
+    public Jar(JarInputStream inputStream) throws IOException {
+        JarInputStream jarInputStream = new JarInputStream(inputStream);
+        String main = null;
+
+        // Find main class
+        Manifest manifest = jarInputStream.getManifest();
+        if (manifest != null) {
+            Attributes attributes = manifest.getMainAttributes();
+            if (attributes != null) {
+                String mainClassName = attributes.getValue("Main-Class");
+                if (mainClassName != null) {
+                    main = mainClassName.replace('.', '/');
+                }
+            }
+        }
+
+        // Cache all classes
+        ZipEntry entry = null;
+        while ((entry = jarInputStream.getNextEntry()) != null) {
+            String clazz = entry.getName();
+            int n;
+            byte[] b = new byte[4096];
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            while ((n = jarInputStream.read(b, 0, b.length)) != -1) {
+                byteArrayOutputStream.write(b);
+            }
+
+            byte[] data = byteArrayOutputStream.toByteArray();
+
+            ClassReader cr = new ClassReader(data);
+            ClassNode node = new ClassNode();
+            cr.accept(node, 0);
+
+            contains.add(clazz);
+            classesData.put(clazz, data);
+            classes.put(clazz, node);
+        }
+
+        this.main = main;
+        this.file = null;
+    }
 
     public boolean containsClass(String clazz) {
         return contains.contains(clazz) ? true : getClass(clazz) != null;
@@ -102,14 +159,21 @@ public class Jar {
     }
 
     public String getFilename() {
-        return file.getName();
+        return file != null ? file.getName() : "<stream>";
     }
 
     public InputStream getInputStream(ZipEntry zipEntry) throws IOException {
-        return file.getInputStream(zipEntry);
+        if (file != null) {
+            return file.getInputStream(zipEntry);
+        } else {
+            //ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(classesData.getka
+            // TODO:
+            return null;
+        }
     }
 
     public Enumeration<JarEntry> getEntries() {
+        // TODO
         return file.entries();
     }
 
@@ -119,20 +183,6 @@ public class Jar {
     }
 
     public static Jar init(File file) throws IOException {
-        JarFile jarFile = new JarFile(file);
-        String main = null;
-
-        Manifest manifest = jarFile.getManifest();
-        if (manifest != null) {
-            Attributes attributes = manifest.getMainAttributes();
-            if (attributes != null) {
-                String mainClassName = attributes.getValue("Main-Class");
-                if (mainClassName != null) {
-                    main = mainClassName.replace('.', '/');
-                }
-            }
-        }
-
-        return new Jar(jarFile, main);
+        return new Jar(file);
     }
 }
