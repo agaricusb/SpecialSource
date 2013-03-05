@@ -1,24 +1,15 @@
-package cpw.mods.fml.common.asm.transformers;
+package net.md_5.specialsource.cpw.mods.fml.common.asm.transformers;
 
 import static org.objectweb.asm.Opcodes.ACC_FINAL;
 import static org.objectweb.asm.Opcodes.ACC_PRIVATE;
 import static org.objectweb.asm.Opcodes.ACC_PROTECTED;
 import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Collection;
 import java.util.List;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
-import java.util.zip.ZipOutputStream;
 
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
@@ -35,9 +26,7 @@ import com.google.common.collect.Multimap;
 import com.google.common.io.LineProcessor;
 import com.google.common.io.Resources;
 
-import cpw.mods.fml.relauncher.IClassTransformer;
-
-public class AccessTransformer implements IClassTransformer
+public class AccessTransformer
 {
     private static final boolean DEBUG = false;
     private class Modifier
@@ -72,27 +61,14 @@ public class AccessTransformer implements IClassTransformer
 
     private Multimap<String, Modifier> modifiers = ArrayListMultimap.create();
 
-    public AccessTransformer() throws IOException
-    {
-        this("fml_at.cfg");
-    }
-    protected AccessTransformer(String rulesFile) throws IOException
+    public AccessTransformer(File rulesFile) throws IOException
     {
         readMapFile(rulesFile);
     }
 
-    private void readMapFile(String rulesFile) throws IOException
+    private void readMapFile(File rulesFile) throws IOException
     {
-        File file = new File(rulesFile);
-        URL rulesResource;
-        if (file.exists())
-        {
-            rulesResource = file.toURI().toURL();
-        }
-        else
-        {
-            rulesResource = Resources.getResource(rulesFile);
-        }
+        URL rulesResource = rulesFile.toURI().toURL();
         Resources.readLines(rulesResource, Charsets.UTF_8, new LineProcessor<Void>()
         {
             @Override
@@ -142,10 +118,9 @@ public class AccessTransformer implements IClassTransformer
     }
 
     @SuppressWarnings("unchecked")
-    @Override
     public byte[] transform(String name, byte[] bytes)
     {
-    	if (bytes == null) { return null; }
+        if (bytes == null) { return null; }
         if (!modifiers.containsKey(name)) { return bytes; }
 
         ClassNode classNode = new ClassNode();
@@ -235,7 +210,7 @@ public class AccessTransformer implements IClassTransformer
             ret |= (t != ACC_PRIVATE && t != 0 /* default */&& t != ACC_PROTECTED ? t : ACC_PUBLIC);
             break;
         default:
-            throw new RuntimeException("The fuck?");
+            throw new RuntimeException("Illegal access: " + (access & 7));
         }
 
         // Clear the "final" marker on fields only if specified in control field
@@ -252,168 +227,5 @@ public class AccessTransformer implements IClassTransformer
         }
         target.newAccess = ret;
         return ret;
-    }
-
-    public static void main(String[] args)
-    {
-        if (args.length < 2)
-        {
-            System.out.println("Usage: AccessTransformer <JarPath> <MapFile> [MapFile2]... ");
-            System.exit(1);
-        }
-
-        boolean hasTransformer = false;
-        AccessTransformer[] trans = new AccessTransformer[args.length - 1];
-        for (int x = 1; x < args.length; x++)
-        {
-            try
-            {
-                trans[x - 1] = new AccessTransformer(args[x]);
-                hasTransformer = true;
-            }
-            catch (IOException e)
-            {
-                System.out.println("Could not read Transformer Map: " + args[x]);
-                e.printStackTrace();
-            }
-        }
-
-        if (!hasTransformer)
-        {
-            System.out.println("Culd not find a valid transformer to perform");
-            System.exit(1);
-        }
-
-        File orig = new File(args[0]);
-        File temp = new File(args[0] + ".ATBack");
-        if (!orig.exists() && !temp.exists())
-        {
-            System.out.println("Could not find target jar: " + orig);
-            System.exit(1);
-        }
-
-        if (!orig.renameTo(temp))
-        {
-            System.out.println("Could not rename file: " + orig + " -> " + temp);
-            System.exit(1);
-        }
-
-        try
-        {
-            processJar(temp, orig, trans);
-        }
-        catch (IOException e)
-        {
-            e.printStackTrace();
-            System.exit(1);
-        }
-
-        if (!temp.delete())
-        {
-            System.out.println("Could not delete temp file: " + temp);
-        }
-    }
-
-    private static void processJar(File inFile, File outFile, AccessTransformer[] transformers) throws IOException
-    {
-        ZipInputStream inJar = null;
-        ZipOutputStream outJar = null;
-
-        try
-        {
-            try
-            {
-                inJar = new ZipInputStream(new BufferedInputStream(new FileInputStream(inFile)));
-            }
-            catch (FileNotFoundException e)
-            {
-                throw new FileNotFoundException("Could not open input file: " + e.getMessage());
-            }
-
-            try
-            {
-                outJar = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(outFile)));
-            }
-            catch (FileNotFoundException e)
-            {
-                throw new FileNotFoundException("Could not open output file: " + e.getMessage());
-            }
-
-            ZipEntry entry;
-            while ((entry = inJar.getNextEntry()) != null)
-            {
-                if (entry.isDirectory())
-                {
-                    outJar.putNextEntry(entry);
-                    continue;
-                }
-
-                byte[] data = new byte[4096];
-                ByteArrayOutputStream entryBuffer = new ByteArrayOutputStream();
-
-                int len;
-                do
-                {
-                    len = inJar.read(data);
-                    if (len > 0)
-                    {
-                        entryBuffer.write(data, 0, len);
-                    }
-                }
-                while (len != -1);
-
-                byte[] entryData = entryBuffer.toByteArray();
-
-                String entryName = entry.getName();
-
-                if (entryName.endsWith(".class") && !entryName.startsWith("."))
-                {
-                    ClassNode cls = new ClassNode();
-                    ClassReader rdr = new ClassReader(entryData);
-                    rdr.accept(cls, 0);
-                    String name = cls.name.replace('/', '.').replace('\\', '.');
-
-                    for (AccessTransformer trans : transformers)
-                    {
-                        entryData = trans.transform(name, entryData);
-                    }
-                }
-
-                ZipEntry newEntry = new ZipEntry(entryName);
-                outJar.putNextEntry(newEntry);
-                outJar.write(entryData);
-            }
-        }
-        finally
-        {
-            if (outJar != null)
-            {
-                try
-                {
-                    outJar.close();
-                }
-                catch (IOException e)
-                {
-                }
-            }
-
-            if (inJar != null)
-            {
-                try
-                {
-                    inJar.close();
-                }
-                catch (IOException e)
-                {
-                }
-            }
-        }
-    }
-    public void ensurePublicAccessFor(String modClazzName)
-    {
-        Modifier m = new Modifier();
-        m.setTargetAccess("public");
-        m.modifyClassVisibility = true;
-        modifiers.put(modClazzName, m);
     }
 }

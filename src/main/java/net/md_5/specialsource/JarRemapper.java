@@ -36,6 +36,9 @@ import java.io.InputStream;
 import java.util.*;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
+
+import com.google.common.io.ByteStreams;
+import net.md_5.specialsource.cpw.mods.fml.common.asm.transformers.AccessTransformer;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.commons.Remapper;
@@ -46,9 +49,14 @@ public class JarRemapper extends Remapper {
     private static final int CLASS_LEN = ".class".length();
 
     public final JarMapping jarMapping;
+    private List<AccessTransformer> accessTransformers = new ArrayList<AccessTransformer>();
 
     public JarRemapper(JarMapping jarMapping) {
         this.jarMapping = jarMapping;
+    }
+
+    public void addAccessTransformer(String filename) throws IOException {
+        accessTransformers.add(new AccessTransformer(URLDownloader.getLocalFile(filename)));
     }
 
     @Override
@@ -116,7 +124,14 @@ public class JarRemapper extends Remapper {
                         // remap classes
                         name = name.substring(0, name.length() - CLASS_LEN);
 
-                        data = remapClassFile(is);
+                        data = ByteStreams.toByteArray(is);
+                        if (accessTransformers.size() != 0) {
+                            for (AccessTransformer accessTransformer : accessTransformers) {
+                                data = accessTransformer.transform(name, data); // TODO: better place to do this?? not RemapperPreprocessor?
+                            }
+                        }
+                        data = remapClassFile(data);
+
                         String newName = map(name);
 
                         entry = new JarEntry(newName == null ? name : newName + ".class");
