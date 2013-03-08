@@ -72,23 +72,17 @@ public class AccessChange {
         accessCodes.put("deprecated", Opcodes.ACC_DEPRECATED);
     }
 
-    // TODO: lombokize?
-    public AccessChange(int clear, int set) {
-        this.clear = clear;
-        this.set = set;
-    }
+    private final static int MASK_ALL_VISIBILITY = Opcodes.ACC_PUBLIC | Opcodes.ACC_PRIVATE | Opcodes.ACC_PROTECTED;
 
     public AccessChange(String s) {
         String[] parts = s.split("(?=[+-])"); // preserve delimiters
-        System.out.println("PARTS="+ Arrays.toString(parts));
         if (parts.length < 1) {
             throw new IllegalArgumentException("Invalid access string: " + s);
         }
 
         // Symbol visibility
-        clear = 7; // always clear lower 3 bits, so visibility can be set below
+        clear = MASK_ALL_VISIBILITY; // always clear lower 3 bits, so visibility can be set below
         String visibilityString = parts[0];
-        System.out.println("visibilityString="+visibilityString+", accessCodes="+accessCodes+", s="+s);
         set = accessCodes.get(visibilityString);
         if (set > Opcodes.ACC_PROTECTED) {
             throw new IllegalArgumentException("Invalid access visibility: " + visibilityString);
@@ -131,6 +125,12 @@ public class AccessChange {
      */
     public void merge(AccessChange rhs) {
         clear |= rhs.clear;
+
+        if ((rhs.set & MASK_ALL_VISIBILITY) != 0) {
+            // visibility change - clear old visibility bits
+            set &= ~MASK_ALL_VISIBILITY;
+        }
+
         set |= rhs.set;
     }
 }

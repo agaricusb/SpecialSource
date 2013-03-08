@@ -28,15 +28,11 @@
  */
 package net.md_5.specialsource;
 
-import lombok.libs.org.objectweb.asm.Opcodes;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class AccessMap {
@@ -67,12 +63,10 @@ public class AccessMap {
             // protected/public/private[+/-modifiers] symbol
             n = line.indexOf(' ');
             if (n == -1) {
-                throw new IllegalArgumentException("loadAccessTransformer invalid line: " + line);
+                throw new IOException("loadAccessTransformer invalid line: " + line);
             }
             String accessString = line.substring(0, n);
             String symbolString = line.substring(n + 1);
-
-            System.out.println("accessString="+accessString+", symbolString="+symbolString);
 
             addAccessChange(symbolString, accessString);
         }
@@ -113,7 +107,6 @@ public class AccessMap {
             System.out.println("INFO: merging AccessMap "+key+" from "+map.get(key)+" with "+accessChange);
             map.get(key).merge(accessChange);
         }
-        System.out.println("addAccessChange "+key+" = "+accessChange);
         map.put(key, accessChange);
     }
 
@@ -123,7 +116,7 @@ public class AccessMap {
         access = apply(className, access);
         access = apply("*", access);
 
-        System.out.println("AT: class: "+className+" "+old+" -> "+access);
+        //System.out.println("AT: class: "+className+" "+old+" -> "+access); // TODO: debug logging
 
         return access;
     }
@@ -135,7 +128,7 @@ public class AccessMap {
         access = apply(className + "/*", access);
         access = apply(className + "/" + fieldName, access);
 
-        System.out.println("AT: field: "+className+"/"+fieldName+" "+old+" -> "+access);
+        //System.out.println("AT: field: "+className+"/"+fieldName+" "+old+" -> "+access);
 
         return access;
     }
@@ -147,7 +140,7 @@ public class AccessMap {
         access = apply(className + "/* ()", access);
         access = apply(className + "/" + methodName + " " + methodDesc, access);
 
-        System.out.println("AT: method: "+className+"/"+methodName+" "+methodDesc+" "+old+" -> "+access);
+        //System.out.println("AT: method: "+className+"/"+methodName+" "+methodDesc+" "+old+" -> "+access);
 
         return access;
     }
