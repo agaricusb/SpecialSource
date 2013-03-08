@@ -76,6 +76,14 @@ public class AccessMap {
         }
     }
 
+    public void loadAccessTransformer(File file) throws IOException {
+        loadAccessTransformer(new BufferedReader(new FileReader(file)));
+    }
+
+    public void loadAccessTransformer(String filename) throws IOException {
+        loadAccessTransformer(URLDownloader.getLocalFile(filename));
+    }
+
     /**
      * Convert a symbol name pattern from AT config to internal format
      */
