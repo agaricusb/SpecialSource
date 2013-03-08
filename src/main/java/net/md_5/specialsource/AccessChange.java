@@ -28,6 +28,7 @@
  */
 package net.md_5.specialsource;
 
+import lombok.ToString;
 import lombok.libs.org.objectweb.asm.Opcodes;
 
 import java.util.Arrays;
@@ -37,6 +38,7 @@ import java.util.Map;
 /**
  * Represents symbol access specifiers to be added or removed
  */
+@ToString
 public class AccessChange {
 
     private int clear; // bits to clear to 0
@@ -86,6 +88,7 @@ public class AccessChange {
         // Symbol visibility
         clear = 7; // always clear lower 3 bits, so visibility can be set below
         String visibilityString = parts[0];
+        System.out.println("visibilityString="+visibilityString+", accessCodes="+accessCodes+", s="+s);
         set = accessCodes.get(visibilityString);
         if (set > Opcodes.ACC_PROTECTED) {
             throw new IllegalArgumentException("Invalid access visibility: " + visibilityString);

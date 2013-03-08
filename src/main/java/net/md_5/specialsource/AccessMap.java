@@ -70,9 +70,11 @@ public class AccessMap {
                 throw new IllegalArgumentException("loadAccessTransformer invalid line: " + line);
             }
             String accessString = line.substring(0, n);
-            String symbolString = line.substring(n);
+            String symbolString = line.substring(n + 1);
 
-            addAccessChange(accessString, symbolString);
+            System.out.println("accessString="+accessString+", symbolString="+symbolString);
+
+            addAccessChange(symbolString, accessString);
         }
     }
 
@@ -111,6 +113,7 @@ public class AccessMap {
             System.out.println("INFO: merging AccessMap "+key+" from "+map.get(key)+" with "+accessChange);
             map.get(key).merge(accessChange);
         }
+        System.out.println("addAccessChange "+key+" = "+accessChange);
         map.put(key, accessChange);
     }
 
@@ -151,7 +154,7 @@ public class AccessMap {
 
     private int apply(String key, int existing) {
         AccessChange change = map.get(key);
-        if (key == null) {
+        if (change == null) {
             return existing;
         } else {
             return change.apply(existing);
