@@ -96,7 +96,7 @@ public class JarMapping {
             throw new IllegalArgumentException("loadMappingsDir("+dir+"): not a directory");
         }
 
-        String sep = System.getProperty("file.separator");
+        String sep = URLDownloader.isHTTPURL(dirname) ? "/" : System.getProperty("file.separator");
 
         List<File> srgFiles = new ArrayList<File>();
 
