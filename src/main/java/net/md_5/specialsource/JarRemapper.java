@@ -109,6 +109,53 @@ public class JarRemapper extends Remapper {
         return mapped == null ? name : mapped;
     }
 
+    private Set<String> classRemappingExclusions = new HashSet<String>();
+    {
+        addRemappingExclude("com.avaje."); // org.avaje:ebean
+        addRemappingExclude("guava10."); // com.google.guava:guava [relocated]
+        addRemappingExclude("javax."); // javax.persistence:persistence-api
+        addRemappingExclude("org.apache.commons.lang."); // commons-lang:commons-lang
+        //addTransformerExclusion("org.bukkit."); // za.co.mcportcentral:mcpc-api // enabled for runtime deobfuscation of NMS references in OBC
+        addRemappingExclude("org.bukkit.craftbukkit.libs."); // relocated libraries
+        addRemappingExclude("org.json.simple."); // com.googlecode.json-simple:json-simple
+        addRemappingExclude("org.yaml.snakeyaml."); // org.yaml:snakeyaml
+
+        // CraftBukkit libraries
+        addRemappingExclude("org.ibex.nestedvm."); // org.xerial:sqlite-jdbc
+        addRemappingExclude("org.sqlite."); // org.xerial:sqlite-jdbc
+        addRemappingExclude("org.fusesource."); // org.fusesource.jansi:jansi
+        addRemappingExclude("joptsimple."); // net.sf.jopt-simple:jopt-simple
+        addRemappingExclude("org.gjt.mm.mysql."); // mysql:mysql-connector-java
+        addRemappingExclude("com.mysql."); // mysql:mysql-connector-java
+
+        // Spigot libraries
+        addRemappingExclude("gnu.trove."); // net.sf.trove4j:trove4j
+
+        // special libraries
+        addRemappingExclude("net.md-5.specialsource."); // net.md-5:SpecialSource
+
+        // Minecraft / Forge
+        addRemappingExclude("org.bouncycastle."); // org.bouncycastle:bcprov-jdk15on
+        addRemappingExclude("argo."); // net.sourceforge.argo:argo
+        addRemappingExclude("paulscode.sound."); // paulscode:sound
+        addRemappingExclude("net.java."); // net.java.jutils and jinput
+
+    }
+
+    public void addRemappingExclude(String classNamePrefix) {
+        classRemappingExclusions.add(classNamePrefix);
+    }
+
+    private boolean shouldExcludeClass(String className) {
+        for (String s : classRemappingExclusions) {
+            if (className.startsWith(s)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * Remap all the classes in a jar, writing a new jar to the target
      */
@@ -125,7 +172,7 @@ public class JarRemapper extends Remapper {
                 InputStream is = jar.getResource(name);
                 try {
                     byte[] data;
-                    if (name.endsWith(".class")) {
+                    if (name.endsWith(".class") && !shouldExcludeClass(name)) {
                         // remap classes
                         name = name.substring(0, name.length() - CLASS_LEN);
 
